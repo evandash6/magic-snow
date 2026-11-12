@@ -1,0 +1,224 @@
+
+(function (global) {
+    "use strict";
+
+    class MagicSnow {
+        constructor(options = {}) {
+            this.options = {
+                density: 65,
+                speed: 1,
+                interaction: true,
+                clickEffect: true,
+                background: true,
+                wind: true,
+                color: "#ffffff",
+                zIndex: 9999,
+                ...options
+            };
+
+            this.snowflakes = [];
+            this.mouse = { x: -1000, y: -1000 };
+            this.running = false;
+            this.frame = null;
+
+            this.handleMouseMove =
+                this.handleMouseMove.bind(this);
+
+            this.handleClick =
+                this.handleClick.bind(this);
+
+            this.animate = this.animate.bind(this);
+        }
+
+        start() {
+            if (this.running) return this;
+
+            this.running = true;
+
+            this.container = document.createElement("div");
+            this.container.className = "ms-snow-container";
+            this.container.style.zIndex = this.options.zIndex;
+
+            document.body.appendChild(this.container);
+
+            if (this.options.background) {
+                this.background = document.createElement("div");
+                this.background.className = "ms-snow-background";
+                document.body.appendChild(this.background);
+            }
+
+            if (this.options.interaction) {
+                document.addEventListener(
+                    "mousemove",
+                    this.handleMouseMove
+                );
+            }
+
+            if (this.options.clickEffect) {
+                document.addEventListener(
+                    "click",
+                    this.handleClick
+                );
+            }
+
+            for (let i = 0; i < this.options.density; i++) {
+                this.createSnowflake();
+            }
+
+            this.animate();
+
+            return this;
+        }
+
+        createSnowflake() {
+            const element = document.createElement("div");
+
+            element.className = "ms-snowflake";
+            element.textContent =
+                Math.random() > 0.5 ? "❄" : "❅";
+
+            element.style.color = this.options.color;
+            element.style.fontSize =
+                `${Math.random() * 14 + 8}px`;
+
+            element.style.opacity =
+                Math.random() * 0.6 + 0.3;
+
+            this.container.appendChild(element);
+
+            this.snowflakes.push({
+                element,
+                x: Math.random() * innerWidth,
+                y: Math.random() * innerHeight,
+                velocity: (Math.random() * 1.2 + 0.4) * this.options.speed,
+                wind: Math.random() * 0.6 - 0.3,
+                phase: Math.random() * 6,
+                pushX: 0,
+                pushY: 0,
+                rotation: Math.random() * 360
+            });
+        }
+
+        handleMouseMove(event) {
+            this.mouse.x = event.clientX;
+            this.mouse.y = event.clientY;
+        }
+
+        animate() {
+            if (!this.running) return;
+
+            this.snowflakes.forEach(c => {
+                c.y += c.velocity;
+                c.phase += 0.015;
+
+                if (this.options.wind) {
+                    c.x += c.wind + Math.sin(c.phase) * 0.5;
+                }
+
+                if (this.options.interaction) {
+                    const dx = c.x - this.mouse.x;
+                    const dy = c.y - this.mouse.y;
+                    const distance = Math.hypot(dx, dy);
+
+                    if (distance < 100) {
+                        const force = (100 - distance) / 100;
+
+                        c.pushX += dx / (distance || 1) * force * 2;
+                        c.pushY += dy / (distance || 1) * force * 2;
+
+                        c.rotation += 5;
+                    }
+                }
+
+                c.pushX *= 0.94;
+                c.pushY *= 0.94;
+
+                c.x += c.pushX;
+                c.y += c.pushY;
+
+                c.element.style.transform =
+                    `translate3d(${c.x}px, ${c.y}px, 0) rotate(${c.rotation}deg)`;
+
+                if (c.y > innerHeight + 30) {
+                    c.y = -30;
+                    c.x = Math.random() * innerWidth;
+                }
+            });
+
+            this.frame = requestAnimationFrame(this.animate);
+        }
+
+        handleClick(event) {
+            for (let i = 0; i < 18; i++) {
+                const particle = document.createElement("div");
+
+                particle.className = "ms-snow-particle";
+                particle.textContent =
+                    Math.random() > 0.5 ? "❄" : "✧";
+
+                particle.style.color = this.options.color;
+                particle.style.left = `${event.clientX}px`;
+                particle.style.top = `${event.clientY}px`;
+
+                this.container.appendChild(particle);
+
+                const angle = Math.random() * Math.PI * 2;
+                const distance = Math.random() * 100 + 40;
+
+                const x = Math.cos(angle) * distance;
+                const y = Math.sin(angle) * distance;
+
+                const animation = particle.animate([
+                    {
+                        transform: "translate(-50%, -50%) scale(0.5)",
+                        opacity: 1
+                    },
+                    {
+                        transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(1.5)`,
+                        opacity: 0
+                    }
+                ], {
+                    duration: 900 + Math.random() * 500,
+                    easing: "cubic-bezier(.15,.8,.3,1)"
+                });
+
+                animation.onfinish = () => particle.remove();
+            }
+        }
+
+        stop() {
+            if (!this.running) return this;
+
+            this.running = false;
+            cancelAnimationFrame(this.frame);
+
+            document.removeEventListener(
+                "mousemove",
+                this.handleMouseMove
+            );
+
+            document.removeEventListener(
+                "click",
+                this.handleClick
+            );
+
+            this.container?.remove();
+            this.background?.remove();
+
+            this.snowflakes = [];
+
+            return this;
+        }
+
+        destroy() {
+            this.stop();
+            this.container = null;
+            this.background = null;
+
+            return this;
+        }
+    }
+
+    global.MagicSnow = MagicSnow;
+
+})(window);
